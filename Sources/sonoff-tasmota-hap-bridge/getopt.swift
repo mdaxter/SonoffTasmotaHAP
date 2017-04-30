@@ -15,7 +15,7 @@ func get(options: String, long: UnsafePointer<option>? = nil, index: UnsafeMutab
     let argv = CommandLine.unsafeArgv
     let ch: CInt
     if long != nil {
-       ch = getopt_long_only(argc, argv, options, long, index)
+        ch = getopt_long_only(argc, argv, options, long, index)
     } else {
         ch = getopt(argc, argv, options)
     }
