@@ -1,5 +1,6 @@
 //
 //  SonoffTasmotaHTTPBridge
+//  SonoffTasmotaHAP
 //
 import Foundation
 import RxSwift
