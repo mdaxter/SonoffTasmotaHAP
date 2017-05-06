@@ -14,11 +14,13 @@ import SonoffTasmotaHAP
 let args = CommandLine.arguments
 let cmd = args[0]
 let base = with(cString: cmd) { String(cString: basename($0)) }
+var bridgeName = base
 var logLevel = LogLevel.warning
 
 var longopts: [option] = [
     option(name: "debug",           has_arg: 0, flag: nil, val: Int32("d".utf16.first!)),
     option(name: "file-storage",    has_arg: 1, flag: nil, val: Int32("f".utf16.first!)),
+    option(name: "name",            has_arg: 1, flag: nil, val: Int32("n".utf16.first!)),
     option(name: "password",        has_arg: 1, flag: nil, val: Int32("p".utf16.first!)),
     option(name: "quiet",           has_arg: 0, flag: nil, val: Int32("q".utf16.first!)),
     option(name: "recreate",        has_arg: 0, flag: nil, val: Int32("r".utf16.first!)),
@@ -32,7 +34,8 @@ fileprivate func usage() -> Never {
     print("Options:")
     print("  -d, --debug:               print debug output")
     print("  -f, --file-storage=<file>: file storage path for persistent data")
-    print("  -p, --pin=<in>:            HomeKit PIN for authentication [123-44-321]")
+    print("  -n, --name=<bridge-name>:  bridge name [\(base)]")
+    print("  -p, --pin=<PIN>:           HomeKit PIN for authentication [123-44-321]")
     print("  -q, --quiet:               turn off all non-critical logging output")
     print("  -r, --recreate:            drop and rebuild all pairings")
     print("  -s, --secret=<pwd>:        secret password for authentication")
@@ -47,10 +50,11 @@ var password = ""
 var pin = "123-44-321"
 var recreateDB = false
 var fileStoragePath = try! fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent(base).path
-while let option = get(options: "df:p:qrs:u:v") {
+while let option = get(options: "df:n:p:qrs:u:v") {
     switch option {
     case "d": logLevel        = .debug
     case "f": fileStoragePath = String(cString: optarg)
+    case "n": bridgeName      = String(cString: optarg)
     case "p": pin             = String(cString: optarg)
     case "q": logLevel        = .critical
     case "r": recreateDB      = true
@@ -220,10 +224,55 @@ let timers = names.enumerated().map { (i: Int, name: String) -> DispatchSourceTi
     return timer
 }
 
-let device = Device(name: "Bridge", pin: pin, storage: storage, accessories:
-    accessories)
-device.onIdentify.append { acc in
-    logger.info("Got identified: \(String(describing: acc))")
+let device = Device(name: bridgeName, pin: pin, storage: storage, accessories: accessories)
+device.onIdentify.append {
+    guard let accessory = $0 else {
+        logger.warning("Bridge '\(bridgeName)' was identified")
+        return
+    }
+    guard let i = accessories.index(where: { $0 === accessory }) else {
+        logger.warning("Unknown accessory \(accessory) for \(bridgeName)")
+        return
+    }
+    let name = names[i]
+    if let l = accessory as? Lightbulb {
+        logger.warning("Blinking \(name)")
+        let value = l.lightbulb.on.value ?? false
+        sonoffs[i].send(command: "Power", payload: !value ? "On" : "Off") {
+            guard let dictionary = $0, let result = dictionary["POWER"] else {
+                logger.warning("\(name): Unsuccessful setting value \(!value)")
+                return
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(500)) {
+            sonoffs[i].send(command: "Power", payload: value ? "On" : "Off") {
+                guard let dictionary = $0, let result = dictionary["POWER"] else {
+                    logger.warning("\(name): Unsuccessful setting value \(value)")
+                    return
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(500)) {
+                sonoffs[i].send(command: "Power", payload: !value ? "On" : "Off") {
+                    guard let dictionary = $0, let result = dictionary["POWER"] else {
+                        logger.warning("\(name): Unsuccessful setting value \(!value)")
+                        return
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(500)) {
+                    sonoffs[i].send(command: "Power", payload: value ? "On" : "Off") {
+                        guard let dictionary = $0, let result = dictionary["POWER"] else {
+                            logger.warning("\(name): Unsuccessful setting value \(value)")
+                            return
+                        }
+                    }
+                }
+            }
+        }
+    } else if let o = accessory as? Outlet {
+        logger.warning("Identified outlet \(name)")
+    } else {
+        logger.warning("Identified unknown accessory \(i): \(name)")
+    }
 }
 
 var keepRunning = true
