@@ -12,6 +12,14 @@ public protocol Outlet {
     var outlet: Service.Outlet { get }
 }
 
+public protocol Thermometer {
+    var temperature: Service.TemperatureSensor { get }
+}
+
+public protocol Hygrometer {
+    var humidity: Service.HumiditySensor { get }
+}
+
 extension Accessory {
     open class THLight: Accessory {
         public let lightbulb = Service.Lightbulb()
@@ -35,7 +43,7 @@ extension Accessory {
 }
 
 extension Accessory.Lightbulb: Lightbulb {}
-extension Accessory.THLight: Lightbulb {}
+extension Accessory.THLight: Lightbulb, Thermometer, Hygrometer {}
 
 extension Accessory.Outlet: Outlet {}
-extension Accessory.THOutlet: Outlet {}
+extension Accessory.THOutlet: Outlet, Thermometer, Hygrometer {}
