@@ -9,6 +9,7 @@ let package = Package(
         Target(name: "sonoff-tasmota-hap-bridge", dependencies: ["SonoffTasmotaHAP"]),
     ],
     dependencies: [
-        .Package(url: "https://github.com/Bouke/HAP.git", majorVersion: 0),
+        .Package(url: "https://github.com/mdaxter/HAP.git", majorVersion: 0),
+	.Package(url: "https://github.com/ReactiveX/RxSwift.git", majorVersion: 3),
     ]
 )
