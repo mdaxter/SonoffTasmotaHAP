@@ -63,7 +63,7 @@ public class SonoffTasmotaHTTPBridge {
                     $0.flatMapWithIndex { (e, a) -> Observable<Int> in
                         let doneRetrying = a > maxAttempts
                         DispatchQueue.main.async {
-                            fputs("\(url) error: \(e) -- attempt \(a) - \(doneRetrying ? "retrying" : "giving up")\n", stderr)
+                            fputs("\(url) error: \(e) -- attempt \(a) - \(doneRetrying ? "giving up" : "retrying")\n", stderr)
                         }
                         return doneRetrying ? Observable.error(e) :
                             Observable<Int>.timer(Double(a * 2 + 1), scheduler: MainScheduler.instance)
