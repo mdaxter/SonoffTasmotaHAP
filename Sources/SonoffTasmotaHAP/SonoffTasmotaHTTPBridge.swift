@@ -5,6 +5,7 @@
 import Foundation
 import RxSwift
 import RxCocoa
+import Dispatch
 
 public typealias JSONDictionary = [String: Any]
 public typealias TasmotaDictionary = JSONDictionary
@@ -54,9 +55,22 @@ public class SonoffTasmotaHTTPBridge {
     public func send(command: String = "Status", payload parameter: String? = nil, _ processEvents: @escaping (TasmotaDictionary?) -> Void) {
         let payload = parameter == nil ? "" : "%20\(parameter!)"
         guard let url = URL(string: "\(urlBase)\(command)\(payload)") else { return }
+        let maxAttempts = 3
         let response = Observable.from([url])
             .map { URLRequest(url: $0) }
-            .flatMap { self.urlSession.rx.response(request: $0) }
+            .flatMap {
+                self.urlSession.rx.response(request: $0).retryWhen {
+                    $0.flatMapWithIndex { (e, a) -> Observable<Int> in
+                        let doneRetrying = a > maxAttempts
+                        DispatchQueue.main.async {
+                            fputs("\(url) error: \(e) -- attempt \(a) - \(doneRetrying ? "retrying" : "giving up")\n", stderr)
+                        }
+                        return doneRetrying ? Observable.error(e) :
+                            Observable<Int>.timer(Double(a * 2 + 1), scheduler: MainScheduler.instance)
+                            .take(1)
+                    }
+                }
+            }
         //.shareReplay(1)
 
         response.filter { 200..<300 ~= $0.0.statusCode }
