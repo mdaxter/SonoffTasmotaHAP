@@ -4,7 +4,7 @@ A [HAP](https://github.com/Bouke/HAP) bridge for [Sonoff](https://www.itead.cc/s
 
 ## Usage
 ```
-Usage: \(cmd) <options> [devices ...]
+Usage: sonoff-tasmota-hap-bridge <options> [devices ...]
     Options:
       -d, --debug:               print debug output
       -f, --file-storage=<file>: file storage path for persistent data
